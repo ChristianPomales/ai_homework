@@ -1,6 +1,11 @@
 extern crate num;
 
 use num::abs;
+use std::io;
+use std::io::prelude::*;
+
+static mut TOTAL_EXPANSIONS: i64 = 0;
+static mut MAXIMUM_NODES: usize = 0;
 
 struct IndexTuple {
     row: usize,
@@ -172,7 +177,6 @@ struct EightPuzzleNode {
     prev_move: Moves
 }
 
-// going to want to have queue store a tuple of EightPuzzles and costs
 fn search(problem: Problem, heuristic: fn(EightPuzzle, EightPuzzle) -> i64) -> Option<EightPuzzle> {
     let root = EightPuzzleNode {
         puzzle: problem.initial_state,
@@ -184,6 +188,13 @@ fn search(problem: Problem, heuristic: fn(EightPuzzle, EightPuzzle) -> i64) -> O
     let mut queue: Vec<EightPuzzleNode> = vec![root];
 
     loop {
+        unsafe {
+            let queue_length = queue.len();
+            if queue_length > MAXIMUM_NODES as usize {
+                MAXIMUM_NODES = queue_length;
+            }
+        }
+
         if queue.is_empty() {
             return None;
         }
@@ -197,7 +208,6 @@ fn search(problem: Problem, heuristic: fn(EightPuzzle, EightPuzzle) -> i64) -> O
         enqueueing_function(&mut queue, problem.goal_state, node, heuristic);
     }
 }
-
 
 fn enqueueing_function(nodes: &mut Vec<EightPuzzleNode>, goal: EightPuzzle,
     node: (EightPuzzleNode, usize), heuristic: fn(EightPuzzle, EightPuzzle) -> i64) {
@@ -213,6 +223,10 @@ fn expand_node(node: EightPuzzleNode, goal: EightPuzzle, heuristic: fn(EightPuzz
     println!("Expanding the following state with g(n) = {} and h(n) = {}", node.g, node.h);
     node.puzzle.print_puzzle();
     println!();
+
+    unsafe {
+        TOTAL_EXPANSIONS += 1;
+    }
 
     let mut new_nodes: Vec<EightPuzzleNode> = Vec::new();
 
@@ -250,7 +264,7 @@ fn expand_node(node: EightPuzzleNode, goal: EightPuzzle, heuristic: fn(EightPuzz
                 puzzle: node.puzzle.move_up(),
                 g: node.g + 1,
                 h: heuristic(node.puzzle.move_up(), goal),
-                prev_move: Moves::Down
+                prev_move: Moves::Up
             };
             let left = EightPuzzleNode {
                 puzzle: node.puzzle.move_left(),
@@ -278,7 +292,7 @@ fn expand_node(node: EightPuzzleNode, goal: EightPuzzle, heuristic: fn(EightPuzz
                 puzzle: node.puzzle.move_up(),
                 g: node.g + 1,
                 h: heuristic(node.puzzle.move_up(), goal),
-                prev_move: Moves::Down
+                prev_move: Moves::Up
             };
             let down = EightPuzzleNode {
                 puzzle: node.puzzle.move_down(),
@@ -306,7 +320,7 @@ fn expand_node(node: EightPuzzleNode, goal: EightPuzzle, heuristic: fn(EightPuzz
                 puzzle: node.puzzle.move_up(),
                 g: node.g + 1,
                 h: heuristic(node.puzzle.move_up(), goal),
-                prev_move: Moves::Down
+                prev_move: Moves::Up
             };
             let down = EightPuzzleNode {
                 puzzle: node.puzzle.move_down(),
@@ -334,7 +348,7 @@ fn expand_node(node: EightPuzzleNode, goal: EightPuzzle, heuristic: fn(EightPuzz
                 puzzle: node.puzzle.move_up(),
                 g: node.g + 1,
                 h: heuristic(node.puzzle.move_up(), goal),
-                prev_move: Moves::Down
+                prev_move: Moves::Up
             };
             let down = EightPuzzleNode {
                 puzzle: node.puzzle.move_down(),
@@ -387,7 +401,7 @@ fn uniform_search_heuristic(_puzzle: EightPuzzle, _goal: EightPuzzle) -> i64 {
     return 0
 }
 
-fn missplaced_tile_heuristic(puzzle: EightPuzzle, goal: EightPuzzle) -> i64 {
+fn misplaced_tile_heuristic(puzzle: EightPuzzle, goal: EightPuzzle) -> i64 {
     let mut count = 0;
 
     let row_count = puzzle.puzzle.len();
@@ -440,32 +454,89 @@ fn manhattan_distance_heuristic(puzzle: EightPuzzle, _goal: EightPuzzle) -> i64 
 }
 
 fn main() {
-    let initial_state = EightPuzzle {
-        puzzle: [[1, 2, 3], [4, 8, 255], [7, 6, 5]],
-    };
+    let stdin = io::stdin();
 
+    println!("Welcome to Christian Pomales's 8-puzzle solver");
+    println!("");
+    println!("Type \"1\" to use the default puzzle, or \"2\" to enter your own puzzle");
+
+    let mut puzzle_option = String::new();;
+    stdin.lock().read_line(&mut puzzle_option).unwrap();
+
+    let initial_state: EightPuzzle;
     let goal_state = EightPuzzle {
         puzzle: [[1, 2, 3], [4, 5, 6], [7, 8, 255]],
     };
+    let problem: Problem;
+    match puzzle_option.as_str() {
+        "1\n" => {
+            initial_state = EightPuzzle {
+                puzzle: [[1, 2, 3], [4, 8, 255], [7, 6, 5]],
+            };
 
-    let problem = Problem {
-        initial_state: initial_state,
-        goal_state: goal_state
-    };
+            problem = Problem {
+                initial_state: initial_state,
+                goal_state: goal_state
+            };
+            
+        },
+        "2\n" => {
+            initial_state = EightPuzzle {
+                puzzle: [[1, 2, 3], [4, 8, 255], [7, 6, 5]],
+            };
+
+            problem = Problem {
+                initial_state: initial_state,
+                goal_state: goal_state
+            };
+        },
+        _ => {
+            println!("invalid algorithm choice!");
+            return();
+        }
+    }
 
     println!("Initial State:");
-
     &problem.initial_state.print_puzzle();
+    println!("");
 
-    println!("///////////////////////////////////");
+    println!("Enter your choice of algorithm");
+    println!("1. \t Uniform Cost Search");
+    println!("2. \t A* with the Misplaced Tile heuristic.");
+    println!("3. \t A* with the Manhattan distance heuristic.");
+    println!("");
 
-    let answer = search(problem, manhattan_distance_heuristic);
+    let mut heuristic_input = String::new();;
+    stdin.lock().read_line(&mut heuristic_input).unwrap();
 
-    println!("///////////////////////////////////");
+    let heuristic: fn(EightPuzzle, EightPuzzle) -> i64;
+    match heuristic_input.as_str() {
+        "1\n" => {
+            heuristic = uniform_search_heuristic
+        },
+        "2\n" => {
+            heuristic = misplaced_tile_heuristic
+        },
+        "3\n" => {
+            heuristic = manhattan_distance_heuristic
+        },
+        _ => {
+            println!("invalid algorithm choice!");
+            return();
+        }
+    }
 
-    println!("Answer:");
+    let answer = search(problem, heuristic);
+
+    println!("Goal!!");
     match answer {
         Some(puzzle) => puzzle.print_puzzle(),
         None => println!("no answer :(")
+    }
+    
+    unsafe {
+        println!("");
+        println!("To solve this problem the search algorithm expansed a total of {} nodes", TOTAL_EXPANSIONS);
+        println!("The maximum number of nodes in the queue at any one time was {}", MAXIMUM_NODES);
     }
 }
