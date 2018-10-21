@@ -18,7 +18,7 @@ impl EightPuzzle {
         for row in self.puzzle.iter() {
             for col in row {
                 if *col == 255 {
-                    print!("\t []")
+                    print!("\t *")
                 } else {
                     print!("\t {}", col)
                 }
@@ -155,41 +155,235 @@ struct Problem {
     goal_state: EightPuzzle
 }
 
-// going to want to have quque store a tuple of EightPuzzles and costs
-fn search(problem: Problem) -> Option<EightPuzzle> {
-    let mut queue: Vec<EightPuzzle> = vec![problem.initial_state];
+#[derive(Clone)]
+enum Moves {
+    Up,
+    Down,
+    Left,
+    Right,
+    Nothing
+}
+
+#[derive(Clone)]
+struct EightPuzzleNode {
+    puzzle: EightPuzzle,
+    g: i64,
+    h: i64,
+    prev_move: Moves
+}
+
+// going to want to have queue store a tuple of EightPuzzles and costs
+fn search(problem: Problem, heuristic: fn(EightPuzzle, EightPuzzle) -> i64) -> Option<EightPuzzle> {
+    let root = EightPuzzleNode {
+        puzzle: problem.initial_state,
+        g: 0,
+        h: heuristic(problem.initial_state, problem.goal_state),
+        prev_move: Moves::Nothing
+    };
+
+    let mut queue: Vec<EightPuzzleNode> = vec![root];
 
     loop {
         if queue.is_empty() {
             return None;
         }
 
-        let node = queue.pop().unwrap();
+        let node = dequeueing_function(&mut queue);
 
-        if node.puzzle == problem.goal_state.puzzle {
-            return Some(node);
+        if node.0.puzzle.puzzle == problem.goal_state.puzzle {
+            return Some(node.0.puzzle);
         }
 
-        enqueueing_function(&mut queue, node);
-
-        return Some(problem.goal_state)
+        enqueueing_function(&mut queue, problem.goal_state, node, heuristic);
     }
 }
 
-fn enqueueing_function(nodes: &mut Vec<EightPuzzle>, node: EightPuzzle) {
-    let new_nodes = vec![
-        node.move_up(), node.move_down(),
-        node.move_left(), node.move_right()
-    ];
 
-    for element in new_nodes {
-        if element.puzzle != node.puzzle {
-            nodes.push(element);
-        }
+fn enqueueing_function(nodes: &mut Vec<EightPuzzleNode>, goal: EightPuzzle,
+    node: (EightPuzzleNode, usize), heuristic: fn(EightPuzzle, EightPuzzle) -> i64) {
+    let mut new_nodes = expand_node(node.0, goal, heuristic);
+    new_nodes.reverse();
+    
+    for element in new_nodes.iter() {
+        nodes.insert(node.1, element.clone());
     }
 }
 
-fn uniform_search_heuristic(puzzle: EightPuzzle, goal: EightPuzzle) -> i64 {
+fn expand_node(node: EightPuzzleNode, goal: EightPuzzle, heuristic: fn(EightPuzzle, EightPuzzle) -> i64) -> Vec<EightPuzzleNode> {    
+    println!("Expanding the following state with g(n) = {} and h(n) = {}", node.g, node.h);
+    node.puzzle.print_puzzle();
+    println!();
+
+    let mut new_nodes: Vec<EightPuzzleNode> = Vec::new();
+
+    match node.prev_move {
+        Moves::Up => {
+            let down = EightPuzzleNode {
+                puzzle: node.puzzle.move_down(),
+                g: node.g + 1,
+                h: heuristic(node.puzzle.move_down(), goal),
+                prev_move: Moves::Down
+            };
+            let left = EightPuzzleNode {
+                puzzle: node.puzzle.move_left(),
+                g: node.g + 1,
+                h: heuristic(node.puzzle.move_left(), goal),
+                prev_move: Moves::Left
+            };
+            let right = EightPuzzleNode {
+                puzzle: node.puzzle.move_right(),
+                g: node.g + 1,
+                h: heuristic(node.puzzle.move_right(), goal),
+                prev_move: Moves::Right
+            };
+
+            let created_nodes = vec![down, left, right];
+
+            for element in created_nodes {
+                if element.puzzle.puzzle != node.puzzle.puzzle {
+                    new_nodes.push(element);
+                }
+            }
+        },
+        Moves::Down => {
+            let up = EightPuzzleNode {
+                puzzle: node.puzzle.move_up(),
+                g: node.g + 1,
+                h: heuristic(node.puzzle.move_up(), goal),
+                prev_move: Moves::Down
+            };
+            let left = EightPuzzleNode {
+                puzzle: node.puzzle.move_left(),
+                g: node.g + 1,
+                h: heuristic(node.puzzle.move_left(), goal),
+                prev_move: Moves::Left
+            };
+            let right = EightPuzzleNode {
+                puzzle: node.puzzle.move_right(),
+                g: node.g + 1,
+                h: heuristic(node.puzzle.move_right(), goal),
+                prev_move: Moves::Right
+            };
+
+            let created_nodes = vec![up, left, right];
+
+            for element in created_nodes {
+                if element.puzzle.puzzle != node.puzzle.puzzle {
+                    new_nodes.push(element);
+                }
+            }
+        },
+        Moves::Left => {
+            let up = EightPuzzleNode {
+                puzzle: node.puzzle.move_up(),
+                g: node.g + 1,
+                h: heuristic(node.puzzle.move_up(), goal),
+                prev_move: Moves::Down
+            };
+            let down = EightPuzzleNode {
+                puzzle: node.puzzle.move_down(),
+                g: node.g + 1,
+                h: heuristic(node.puzzle.move_down(), goal),
+                prev_move: Moves::Down
+            };
+            let right = EightPuzzleNode {
+                puzzle: node.puzzle.move_right(),
+                g: node.g + 1,
+                h: heuristic(node.puzzle.move_right(), goal),
+                prev_move: Moves::Right
+            };
+
+            let created_nodes = vec![up, down, right];
+
+            for element in created_nodes {
+                if element.puzzle.puzzle != node.puzzle.puzzle {
+                    new_nodes.push(element);
+                }
+            }
+        },
+        Moves::Right => {
+            let up = EightPuzzleNode {
+                puzzle: node.puzzle.move_up(),
+                g: node.g + 1,
+                h: heuristic(node.puzzle.move_up(), goal),
+                prev_move: Moves::Down
+            };
+            let down = EightPuzzleNode {
+                puzzle: node.puzzle.move_down(),
+                g: node.g + 1,
+                h: heuristic(node.puzzle.move_down(), goal),
+                prev_move: Moves::Down
+            };
+            let left = EightPuzzleNode {
+                puzzle: node.puzzle.move_left(),
+                g: node.g + 1,
+                h: heuristic(node.puzzle.move_left(), goal),
+                prev_move: Moves::Left
+            };
+
+            let created_nodes = vec![up, down, left];
+
+            for element in created_nodes {
+                if element.puzzle.puzzle != node.puzzle.puzzle {
+                    new_nodes.push(element);
+                }
+            }
+        },
+        Moves::Nothing => {
+            let up = EightPuzzleNode {
+                puzzle: node.puzzle.move_up(),
+                g: node.g + 1,
+                h: heuristic(node.puzzle.move_up(), goal),
+                prev_move: Moves::Down
+            };
+            let down = EightPuzzleNode {
+                puzzle: node.puzzle.move_down(),
+                g: node.g + 1,
+                h: heuristic(node.puzzle.move_down(), goal),
+                prev_move: Moves::Down
+            };
+            let left = EightPuzzleNode {
+                puzzle: node.puzzle.move_left(),
+                g: node.g + 1,
+                h: heuristic(node.puzzle.move_left(), goal),
+                prev_move: Moves::Left
+            };
+            let right = EightPuzzleNode {
+                puzzle: node.puzzle.move_right(),
+                g: node.g + 1,
+                h: heuristic(node.puzzle.move_right(), goal),
+                prev_move: Moves::Right
+            };
+
+            let created_nodes = vec![up, down, left, right];
+
+            for element in created_nodes {
+                if element.puzzle.puzzle != node.puzzle.puzzle {
+                    new_nodes.push(element);
+                }
+            }
+        },
+    }
+
+    return new_nodes
+}
+
+fn dequeueing_function(nodes: &mut Vec<EightPuzzleNode>) -> (EightPuzzleNode, usize) {
+    let mut lowest_cost = (0, <i64>::max_value()); // index, cost
+
+    for (index, element) in nodes.iter().enumerate() {
+        let cost = element.g + element.h;
+
+        if cost < lowest_cost.1 {
+            lowest_cost = (index, cost);
+        }
+    }
+    let return_node = nodes.remove(lowest_cost.0);
+
+    return (return_node, lowest_cost.0);
+}
+
+fn uniform_search_heuristic(_puzzle: EightPuzzle, _goal: EightPuzzle) -> i64 {
     return 0
 }
 
@@ -220,6 +414,10 @@ fn manhattan_distance_heuristic(puzzle: EightPuzzle, _goal: EightPuzzle) -> i64 
         for j in 0..col_count {
             let number = puzzle.puzzle[i][j];
 
+            if number == 255 {
+                continue;
+            }
+
             let x_value = j as i64;
             let x_goal = ((number - 1) % 3) as i64;
 
@@ -230,20 +428,20 @@ fn manhattan_distance_heuristic(puzzle: EightPuzzle, _goal: EightPuzzle) -> i64 
         }
     }
 
-    let x_value = 1;
-    let x_goal = 0; // x position it should be (number - 1) mod  3
+    // let x_value = 1;
+    // let x_goal = 0; // x position it should be (number - 1) mod  3
 
-    let y_value = 2;
-    let y_goal = 0; // floor((number - 1) /  3)
+    // let y_value = 2;
+    // let y_goal = 0; // floor((number - 1) /  3)
 
-    let distance = abs(x_value - x_goal) + abs(y_value - y_goal);;
+    // let distance = abs(x_value - x_goal) + abs(y_value - y_goal);;
 
-    return distance
+    return total_distance
 }
 
 fn main() {
     let initial_state = EightPuzzle {
-        puzzle: [[1, 2, 3], [4, 255, 6], [7, 5, 8]],
+        puzzle: [[1, 2, 3], [4, 8, 255], [7, 6, 5]],
     };
 
     let goal_state = EightPuzzle {
@@ -259,7 +457,11 @@ fn main() {
 
     &problem.initial_state.print_puzzle();
 
-    let answer = search(problem);
+    println!("///////////////////////////////////");
+
+    let answer = search(problem, manhattan_distance_heuristic);
+
+    println!("///////////////////////////////////");
 
     println!("Answer:");
     match answer {
