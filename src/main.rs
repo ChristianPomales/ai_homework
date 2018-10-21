@@ -1,3 +1,7 @@
+extern crate num;
+
+use num::abs;
+
 struct IndexTuple {
     row: usize,
     col: usize
@@ -151,7 +155,8 @@ struct Problem {
     goal_state: EightPuzzle
 }
 
-fn search(problem: Problem, _heuristic: fn(EightPuzzle) -> i64) -> Option<EightPuzzle> {
+// going to want to have quque store a tuple of EightPuzzles and costs
+fn search(problem: Problem) -> Option<EightPuzzle> {
     let mut queue: Vec<EightPuzzle> = vec![problem.initial_state];
 
     loop {
@@ -184,7 +189,7 @@ fn enqueueing_function(nodes: &mut Vec<EightPuzzle>, node: EightPuzzle) {
     }
 }
 
-fn uniform_search_heuristic(_puzzle: EightPuzzle) -> i64 {
+fn uniform_search_heuristic(puzzle: EightPuzzle, goal: EightPuzzle) -> i64 {
     return 0
 }
 
@@ -205,6 +210,37 @@ fn missplaced_tile_heuristic(puzzle: EightPuzzle, goal: EightPuzzle) -> i64 {
     return count
 }
 
+fn manhattan_distance_heuristic(puzzle: EightPuzzle, _goal: EightPuzzle) -> i64 {
+    let mut total_distance = 0;
+
+    let row_count = puzzle.puzzle.len();
+    let col_count = puzzle.puzzle[0].len();
+
+    for i in 0..row_count {
+        for j in 0..col_count {
+            let number = puzzle.puzzle[i][j];
+
+            let x_value = j as i64;
+            let x_goal = ((number - 1) % 3) as i64;
+
+            let y_value = i as i64;
+            let y_goal = ((number as f64 - 1.0) /  3.0).floor() as i64;
+
+            total_distance += abs(x_value - x_goal) + abs(y_value - y_goal);
+        }
+    }
+
+    let x_value = 1;
+    let x_goal = 0; // x position it should be (number - 1) mod  3
+
+    let y_value = 2;
+    let y_goal = 0; // floor((number - 1) /  3)
+
+    let distance = abs(x_value - x_goal) + abs(y_value - y_goal);;
+
+    return distance
+}
+
 fn main() {
     let initial_state = EightPuzzle {
         puzzle: [[1, 2, 3], [4, 255, 6], [7, 5, 8]],
@@ -223,7 +259,7 @@ fn main() {
 
     &problem.initial_state.print_puzzle();
 
-    let answer = search(problem, uniform_search_heuristic);
+    let answer = search(problem);
 
     println!("Answer:");
     match answer {

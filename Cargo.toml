@@ -5,3 +5,4 @@ authors = ["Christian Pomales <12565983+ChristianPomales@users.noreply.github.co
 edition = "2018"
 
 [dependencies]
+num = "0.2.0"
