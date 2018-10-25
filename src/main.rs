@@ -4,8 +4,9 @@ use num::abs;
 use std::io;
 use std::io::prelude::*;
 
-static mut TOTAL_EXPANSIONS: i64 = 0;
+static mut TOTAL_EXPANSIONS: u64 = 0;
 static mut MAXIMUM_NODES: usize = 0;
+static mut PRINT_EXPANDING_NODES_TOGGLE: bool = true;
 
 struct IndexTuple {
     row: usize,
@@ -172,12 +173,12 @@ enum Moves {
 #[derive(Clone)]
 struct EightPuzzleNode {
     puzzle: EightPuzzle,
-    g: i64,
-    h: i64,
+    g: u64,
+    h: u64,
     prev_move: Moves
 }
 
-fn search(problem: Problem, heuristic: fn(EightPuzzle, EightPuzzle) -> i64) -> Option<EightPuzzle> {
+fn search(problem: Problem, heuristic: fn(EightPuzzle, EightPuzzle) -> u64) -> Option<EightPuzzle> {
     let root = EightPuzzleNode {
         puzzle: problem.initial_state,
         g: 0,
@@ -210,7 +211,7 @@ fn search(problem: Problem, heuristic: fn(EightPuzzle, EightPuzzle) -> i64) -> O
 }
 
 fn enqueueing_function(nodes: &mut Vec<EightPuzzleNode>, goal: EightPuzzle,
-    node: (EightPuzzleNode, usize), heuristic: fn(EightPuzzle, EightPuzzle) -> i64) {
+    node: (EightPuzzleNode, usize), heuristic: fn(EightPuzzle, EightPuzzle) -> u64) {
     let mut new_nodes = expand_node(node.0, goal, heuristic);
     new_nodes.reverse();
     
@@ -219,13 +220,15 @@ fn enqueueing_function(nodes: &mut Vec<EightPuzzleNode>, goal: EightPuzzle,
     }
 }
 
-fn expand_node(node: EightPuzzleNode, goal: EightPuzzle, heuristic: fn(EightPuzzle, EightPuzzle) -> i64) -> Vec<EightPuzzleNode> {    
-    println!("Expanding the following state with g(n) = {} and h(n) = {}", node.g, node.h);
-    node.puzzle.print_puzzle();
-    println!();
-
+fn expand_node(node: EightPuzzleNode, goal: EightPuzzle, heuristic: fn(EightPuzzle, EightPuzzle) -> u64) -> Vec<EightPuzzleNode> {    
     unsafe {
         TOTAL_EXPANSIONS += 1;
+
+        if PRINT_EXPANDING_NODES_TOGGLE {
+            println!("Expanding the following state with g(n) = {} and h(n) = {}", node.g, node.h);
+            node.puzzle.print_puzzle();
+            println!();
+        }
     }
 
     let mut new_nodes: Vec<EightPuzzleNode> = Vec::new();
@@ -383,7 +386,7 @@ fn expand_node(node: EightPuzzleNode, goal: EightPuzzle, heuristic: fn(EightPuzz
 }
 
 fn dequeueing_function(nodes: &mut Vec<EightPuzzleNode>) -> (EightPuzzleNode, usize) {
-    let mut lowest_cost = (0, <i64>::max_value()); // index, cost
+    let mut lowest_cost = (0, <u64>::max_value()); // index, cost
 
     for (index, element) in nodes.iter().enumerate() {
         let cost = element.g + element.h;
@@ -397,11 +400,11 @@ fn dequeueing_function(nodes: &mut Vec<EightPuzzleNode>) -> (EightPuzzleNode, us
     return (return_node, lowest_cost.0);
 }
 
-fn uniform_search_heuristic(_puzzle: EightPuzzle, _goal: EightPuzzle) -> i64 {
+fn uniform_search_heuristic(_puzzle: EightPuzzle, _goal: EightPuzzle) -> u64 {
     return 0
 }
 
-fn misplaced_tile_heuristic(puzzle: EightPuzzle, goal: EightPuzzle) -> i64 {
+fn misplaced_tile_heuristic(puzzle: EightPuzzle, goal: EightPuzzle) -> u64 {
     let mut count = 0;
 
     let row_count = puzzle.puzzle.len();
@@ -418,7 +421,7 @@ fn misplaced_tile_heuristic(puzzle: EightPuzzle, goal: EightPuzzle) -> i64 {
     return count
 }
 
-fn manhattan_distance_heuristic(puzzle: EightPuzzle, _goal: EightPuzzle) -> i64 {
+fn manhattan_distance_heuristic(puzzle: EightPuzzle, _goal: EightPuzzle) -> u64 {
     let mut total_distance = 0;
 
     let row_count = puzzle.puzzle.len();
@@ -442,15 +445,120 @@ fn manhattan_distance_heuristic(puzzle: EightPuzzle, _goal: EightPuzzle) -> i64 
         }
     }
 
-    // let x_value = 1;
-    // let x_goal = 0; // x position it should be (number - 1) mod  3
+    return total_distance as u64
+}
 
-    // let y_value = 2;
-    // let y_goal = 0; // floor((number - 1) /  3)
+fn build_eightpuzzle_from_input(stdin: & std::io::Stdin) -> EightPuzzle {
+    println!("Enter your puzzle, use a zero to represent the blank");
 
-    // let distance = abs(x_value - x_goal) + abs(y_value - y_goal);;
+    println!("Enter the first row, use space or tabs between numbers: ");
+    let mut first_row = String::new();;
+    stdin.lock().read_line(&mut first_row).unwrap();
 
-    return total_distance
+    println!("Enter the second row, use space or tabs between numbers: ");
+    let mut second_row = String::new();;
+    stdin.lock().read_line(&mut second_row).unwrap();
+
+    println!("Enter the third row, use space or tabs between numbers: ");
+    let mut third_row = String::new();;
+    stdin.lock().read_line(&mut third_row).unwrap();
+
+    let first_row_vec: Vec<&str> = first_row.split_whitespace().collect();
+    let second_row_vec: Vec<&str> = second_row.split_whitespace().collect();
+    let third_row_vec: Vec<&str> = third_row.split_whitespace().collect();
+
+    if (first_row_vec.len() != 3) || (second_row_vec.len() != 3) || (third_row_vec.len() != 3) {
+        panic!("Woops! length is {}, please try again :(", first_row_vec.len());
+    }
+
+    let first_row_array = [first_row_vec[0].parse::<u8>().unwrap(),
+                            first_row_vec[1].parse::<u8>().unwrap(),
+                            first_row_vec[2].parse::<u8>().unwrap()] ;
+
+    let second_row_array = [second_row_vec[0].parse::<u8>().unwrap(),
+                            second_row_vec[1].parse::<u8>().unwrap(),
+                            second_row_vec[2].parse::<u8>().unwrap()] ;
+
+    let third_row_array = [third_row_vec[0].parse::<u8>().unwrap(),
+                            third_row_vec[1].parse::<u8>().unwrap(),
+                            third_row_vec[2].parse::<u8>().unwrap()] ;
+
+    let mut abcd = EightPuzzle {
+        puzzle: [first_row_array, second_row_array, third_row_array],
+    };
+
+    for row in 0..3 {
+        for col in 0..3 {
+            if abcd.puzzle[row][col] == 0 {
+                abcd.puzzle[row][col] = 255;
+            }
+        }
+    }
+
+    return abcd
+}
+
+fn select_prebuild_eightpuzzle(stdin: & std::io::Stdin) -> EightPuzzle {
+    let trivial = EightPuzzle {
+        puzzle: [[1, 2, 3], [4, 5, 6], [7, 8, 255]],
+    };
+
+    let very_easy = EightPuzzle {
+        puzzle: [[1, 2, 3], [4, 5, 6], [7, 255, 8]],
+    };
+
+    let easy = EightPuzzle {
+        puzzle: [[1, 2, 255], [4, 5, 3], [7, 8, 6]],
+    };
+
+
+    let doable = EightPuzzle {
+        puzzle: [[255, 1, 2], [4, 5, 3], [7, 8, 6]],
+    };
+
+    let oh_boy = EightPuzzle {
+        puzzle: [[8, 7, 1],[6, 255, 2],[5, 4, 3]],
+    };
+
+    let impossible = EightPuzzle {
+        puzzle: [[1, 2, 3], [4, 5, 6], [8, 7, 255]]
+    };
+
+    println!("You wish to use a default puzzle. Please enter a desired difficulty on a scale from 0 to 5.");
+    let mut difficulty_input = String::new();;
+    stdin.lock().read_line(&mut difficulty_input).unwrap();
+
+    let difficulty_number = difficulty_input.trim().parse::<u8>().unwrap();
+
+    match difficulty_number {
+        0 => {
+            println!("Difficulty of 'Trivial' selected.");
+            return trivial
+        },
+        1 => {
+            println!("Difficulty of 'Very Easy' selected.");
+            return very_easy
+        },
+        2 => {
+            println!("Difficulty of 'Easy' selected.");
+            return easy
+        },
+        3 => {
+            println!("Difficulty of 'Doable' selected.");
+            return doable
+        },
+        4 => {
+            println!("Difficulty of 'Oh Boy' selected.");
+            return oh_boy
+        },
+        5 => {
+            println!("Difficulty of 'impossible' selected.");
+            return impossible
+        },
+        _ => {
+            panic!("Woops! invalid difficulty! Try again :(");
+        },
+    }
 }
 
 fn main() {
@@ -463,16 +571,15 @@ fn main() {
     let mut puzzle_option = String::new();;
     stdin.lock().read_line(&mut puzzle_option).unwrap();
 
-    let initial_state: EightPuzzle;
     let goal_state = EightPuzzle {
         puzzle: [[1, 2, 3], [4, 5, 6], [7, 8, 255]],
     };
+
+    let initial_state: EightPuzzle;
     let problem: Problem;
     match puzzle_option.as_str() {
         "1\n" => {
-            initial_state = EightPuzzle {
-                puzzle: [[1, 2, 3], [4, 8, 255], [7, 6, 5]],
-            };
+            initial_state = select_prebuild_eightpuzzle(&stdin);
 
             problem = Problem {
                 initial_state: initial_state,
@@ -481,9 +588,7 @@ fn main() {
             
         },
         "2\n" => {
-            initial_state = EightPuzzle {
-                puzzle: [[1, 2, 3], [4, 8, 255], [7, 6, 5]],
-            };
+            initial_state = build_eightpuzzle_from_input(&stdin);
 
             problem = Problem {
                 initial_state: initial_state,
@@ -509,7 +614,7 @@ fn main() {
     let mut heuristic_input = String::new();;
     stdin.lock().read_line(&mut heuristic_input).unwrap();
 
-    let heuristic: fn(EightPuzzle, EightPuzzle) -> i64;
+    let heuristic: fn(EightPuzzle, EightPuzzle) -> u64;
     match heuristic_input.as_str() {
         "1\n" => {
             heuristic = uniform_search_heuristic
@@ -523,6 +628,25 @@ fn main() {
         _ => {
             println!("invalid algorithm choice!");
             return();
+        }
+    }
+
+    println!("Type \"1\" to print each node expansion, or \"2\" to not");
+    let mut print_expanding_nodes_toggle = String::new();
+    stdin.lock().read_line(&mut print_expanding_nodes_toggle).unwrap();
+
+    unsafe {
+        match print_expanding_nodes_toggle.trim().parse::<u8>().unwrap() {
+            1 => {
+                PRINT_EXPANDING_NODES_TOGGLE = true
+            },
+            2 => {
+                PRINT_EXPANDING_NODES_TOGGLE = false
+            },
+            _ => {
+                println!("invalid choice!");
+                return();
+            }
         }
     }
 
