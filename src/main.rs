@@ -235,34 +235,6 @@ fn expand_node(node: EightPuzzleNode, goal: EightPuzzle, heuristic: fn(EightPuzz
 
     match node.prev_move {
         Moves::Up => {
-            let down = EightPuzzleNode {
-                puzzle: node.puzzle.move_down(),
-                g: node.g + 1,
-                h: heuristic(node.puzzle.move_down(), goal),
-                prev_move: Moves::Down
-            };
-            let left = EightPuzzleNode {
-                puzzle: node.puzzle.move_left(),
-                g: node.g + 1,
-                h: heuristic(node.puzzle.move_left(), goal),
-                prev_move: Moves::Left
-            };
-            let right = EightPuzzleNode {
-                puzzle: node.puzzle.move_right(),
-                g: node.g + 1,
-                h: heuristic(node.puzzle.move_right(), goal),
-                prev_move: Moves::Right
-            };
-
-            let created_nodes = vec![down, left, right];
-
-            for element in created_nodes {
-                if element.puzzle.puzzle != node.puzzle.puzzle {
-                    new_nodes.push(element);
-                }
-            }
-        },
-        Moves::Down => {
             let up = EightPuzzleNode {
                 puzzle: node.puzzle.move_up(),
                 g: node.g + 1,
@@ -290,18 +262,18 @@ fn expand_node(node: EightPuzzleNode, goal: EightPuzzle, heuristic: fn(EightPuzz
                 }
             }
         },
-        Moves::Left => {
-            let up = EightPuzzleNode {
-                puzzle: node.puzzle.move_up(),
-                g: node.g + 1,
-                h: heuristic(node.puzzle.move_up(), goal),
-                prev_move: Moves::Up
-            };
+        Moves::Down => {
             let down = EightPuzzleNode {
                 puzzle: node.puzzle.move_down(),
                 g: node.g + 1,
                 h: heuristic(node.puzzle.move_down(), goal),
                 prev_move: Moves::Down
+            };
+            let left = EightPuzzleNode {
+                puzzle: node.puzzle.move_left(),
+                g: node.g + 1,
+                h: heuristic(node.puzzle.move_left(), goal),
+                prev_move: Moves::Left
             };
             let right = EightPuzzleNode {
                 puzzle: node.puzzle.move_right(),
@@ -310,7 +282,7 @@ fn expand_node(node: EightPuzzleNode, goal: EightPuzzle, heuristic: fn(EightPuzz
                 prev_move: Moves::Right
             };
 
-            let created_nodes = vec![up, down, right];
+            let created_nodes = vec![down, left, right];
 
             for element in created_nodes {
                 if element.puzzle.puzzle != node.puzzle.puzzle {
@@ -318,7 +290,7 @@ fn expand_node(node: EightPuzzleNode, goal: EightPuzzle, heuristic: fn(EightPuzz
                 }
             }
         },
-        Moves::Right => {
+        Moves::Left => {
             let up = EightPuzzleNode {
                 puzzle: node.puzzle.move_up(),
                 g: node.g + 1,
@@ -339,6 +311,34 @@ fn expand_node(node: EightPuzzleNode, goal: EightPuzzle, heuristic: fn(EightPuzz
             };
 
             let created_nodes = vec![up, down, left];
+
+            for element in created_nodes {
+                if element.puzzle.puzzle != node.puzzle.puzzle {
+                    new_nodes.push(element);
+                }
+            }
+        },
+        Moves::Right => {
+            let up = EightPuzzleNode {
+                puzzle: node.puzzle.move_up(),
+                g: node.g + 1,
+                h: heuristic(node.puzzle.move_up(), goal),
+                prev_move: Moves::Up
+            };
+            let down = EightPuzzleNode {
+                puzzle: node.puzzle.move_down(),
+                g: node.g + 1,
+                h: heuristic(node.puzzle.move_down(), goal),
+                prev_move: Moves::Down
+            };
+            let right = EightPuzzleNode {
+                puzzle: node.puzzle.move_right(),
+                g: node.g + 1,
+                h: heuristic(node.puzzle.move_right(), goal),
+                prev_move: Moves::Right
+            };
+
+            let created_nodes = vec![up, down, right];
 
             for element in created_nodes {
                 if element.puzzle.puzzle != node.puzzle.puzzle {
