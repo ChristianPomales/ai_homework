@@ -1,8 +1,10 @@
 extern crate num;
+extern crate rand;
 
 use num::abs;
 use std::io;
 use std::io::prelude::*;
+use rand::prelude::*;
 
 static mut TOTAL_EXPANSIONS: u64 = 0;
 static mut MAXIMUM_NODES: usize = 0;
@@ -18,6 +20,7 @@ struct EightPuzzle {
     puzzle: [[u8; 3]; 3],
 }
 
+// implementations for printing eight puzzle and moving space around
 impl EightPuzzle {
     fn print_puzzle(&self) {
         for row in self.puzzle.iter() {
@@ -164,6 +167,8 @@ struct EightPuzzleNode {
     prev_move: Moves,
 }
 
+// takes a problem and heuristic function
+// returns the goal state if we can complete the puzzle, returned None if we cant
 fn search(problem: Problem, heuristic: fn(EightPuzzle, EightPuzzle) -> u64) -> Option<EightPuzzle> {
     let root = EightPuzzleNode {
         puzzle: problem.initial_state,
@@ -196,6 +201,7 @@ fn search(problem: Problem, heuristic: fn(EightPuzzle, EightPuzzle) -> u64) -> O
     }
 }
 
+// expand a previously dequeued node and place them into our queue of nodes
 fn enqueueing_function(
     nodes: &mut Vec<EightPuzzleNode>,
     goal: EightPuzzle,
@@ -210,6 +216,9 @@ fn enqueueing_function(
     }
 }
 
+// takes a node and then depending on the previous move, expand it in different ways
+// for example, if our previous move was to move the space down, we wouldn't want to move it back up
+// this would create unnecessary nodes just ping ponging back and forth
 fn expand_node(
     node: EightPuzzleNode,
     goal: EightPuzzle,
@@ -382,6 +391,7 @@ fn expand_node(
     return new_nodes;
 }
 
+// removes a node and give us back both the node and the index with the queue it was taken from
 fn dequeueing_function(nodes: &mut Vec<EightPuzzleNode>) -> (EightPuzzleNode, usize) {
     let mut lowest_cost = (0, <u64>::max_value()); // index, cost
 
@@ -397,10 +407,12 @@ fn dequeueing_function(nodes: &mut Vec<EightPuzzleNode>) -> (EightPuzzleNode, us
     return (return_node, lowest_cost.0);
 }
 
+// uniform search is A* where h(x) is always zero
 fn uniform_search_heuristic(_puzzle: EightPuzzle, _goal: EightPuzzle) -> u64 {
     return 0;
 }
 
+// looks at every tile and checks to see if it's where it's supposed to be
 fn misplaced_tile_heuristic(puzzle: EightPuzzle, goal: EightPuzzle) -> u64 {
     let mut count = 0;
 
@@ -418,6 +430,8 @@ fn misplaced_tile_heuristic(puzzle: EightPuzzle, goal: EightPuzzle) -> u64 {
     return count;
 }
 
+// returns the cumulative manhattan distance between the numbers' current spot
+// and where they're supposed to be
 fn manhattan_distance_heuristic(puzzle: EightPuzzle, _goal: EightPuzzle) -> u64 {
     let mut total_distance = 0;
 
@@ -445,6 +459,7 @@ fn manhattan_distance_heuristic(puzzle: EightPuzzle, _goal: EightPuzzle) -> u64 
     return total_distance as u64;
 }
 
+// handles taking input and creating a eight puzzle
 fn build_eightpuzzle_from_input(stdin: &std::io::Stdin) -> EightPuzzle {
     println!("Enter your puzzle, use a zero to represent the blank");
 
@@ -504,6 +519,7 @@ fn build_eightpuzzle_from_input(stdin: &std::io::Stdin) -> EightPuzzle {
     return abcd;
 }
 
+// let's the user select between some premade eight puzzles
 fn select_prebuild_eightpuzzle(stdin: &std::io::Stdin) -> EightPuzzle {
     let trivial = EightPuzzle {
         puzzle: [[1, 2, 3], [4, 5, 6], [7, 8, 255]],
@@ -566,12 +582,38 @@ fn select_prebuild_eightpuzzle(stdin: &std::io::Stdin) -> EightPuzzle {
     }
 }
 
+// build a random eight puzzle
+// this may not always be solvable
+fn select_random_eightpuzzle() -> EightPuzzle {
+    let mut numbers = [0, 1, 2, 3, 4, 5, 6, 7, 8];
+
+    let mut rng = thread_rng();
+    rng.shuffle(&mut numbers);
+
+    let first_row_array = [numbers[0], numbers[1], numbers[2]];
+    let second_row_array = [numbers[3], numbers[4], numbers[5]];
+    let third_row_array = [numbers[6], numbers[7], numbers[8]];
+
+    let mut eight_puzzle = EightPuzzle {
+        puzzle: [first_row_array, second_row_array, third_row_array],
+    };
+
+    for row in 0..3 {
+        for col in 0..3 {
+            if eight_puzzle.puzzle[row][col] == 0 {
+                eight_puzzle.puzzle[row][col] = 255;
+            }
+        }
+    }
+
+    return eight_puzzle
+}
+
 fn main() {
     let stdin = io::stdin();
 
     println!("Welcome to Christian Pomales's 8-puzzle solver");
-    println!("");
-    println!("Type \"1\" to use the default puzzle, or \"2\" to enter your own puzzle");
+    println!("Type \"1\" to use the default puzzle, \"2\" to enter your own puzzle, or \"3\" to generate a random puzzle");
 
     let mut puzzle_option = String::new();;
     stdin.lock().read_line(&mut puzzle_option).unwrap();
@@ -593,6 +635,14 @@ fn main() {
         }
         "2\n" => {
             initial_state = build_eightpuzzle_from_input(&stdin);
+
+            problem = Problem {
+                initial_state: initial_state,
+                goal_state: goal_state,
+            };
+        }
+        "3\n" => {
+            initial_state = select_random_eightpuzzle();
 
             problem = Problem {
                 initial_state: initial_state,
@@ -658,7 +708,7 @@ fn main() {
     unsafe {
         println!("");
         println!(
-            "To solve this problem the search algorithm expansed a total of {} nodes",
+            "To solve this problem the search algorithm expanded a total of {} nodes",
             TOTAL_EXPANSIONS
         );
         println!(
